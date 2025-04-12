@@ -6,9 +6,9 @@ import (
 )
 
 type Logger interface {
-	Info(messages ...string)
-	Error(messages ...string)
-	Warn(messages ...string)
+	Info(incoming any)
+	Error(incoming any)
+	Warn(incoming any)
 }
 
 type DefaultLogger struct {
@@ -21,19 +21,30 @@ func NewDefaultLogger(signature string) *DefaultLogger {
 	}
 }
 
-func (dl *DefaultLogger) Error(messages ...string) {
-	dl.log("ERROR", messages...)
+func (dl *DefaultLogger) Error(incoming any) {
+	dl.log("ERROR", incoming)
 }
 
-func (dl *DefaultLogger) Warn(messages ...string) {
-	dl.log("WARN", messages...)
+func (dl *DefaultLogger) Warn(incoming any) {
+	dl.log("WARN", incoming)
 }
 
-func (dl *DefaultLogger) Info(messages ...string) {
-	dl.log("INFO", messages...)
+func (dl *DefaultLogger) Info(incoming any) {
+	dl.log("INFO", incoming)
 }
 
-func (dl *DefaultLogger) log(prefix string, messages ...string) {
+func (dl *DefaultLogger) log(prefix string, incoming any) {
+	messages := []string{}
+
+	switch v := incoming.(type) {
+	case string:
+		messages = append(messages, v)
+	case []string:
+		messages = append(messages, v...)
+	default:
+		messages = append(messages, "CANNOT PARSE INCOMING LOG INFORMATION")
+	}
+
 	logString := fmt.Sprintf("%s [%s]: ", dl.signature, prefix)
 
 	for index, message := range messages {
