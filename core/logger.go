@@ -41,6 +41,8 @@ func (dl *DefaultLogger) log(prefix string, incoming any) {
 		messages = append(messages, v)
 	case []string:
 		messages = append(messages, v...)
+	case error:
+		messages = append(messages, v.Error())
 	default:
 		messages = append(messages, "CANNOT PARSE INCOMING LOG INFORMATION")
 	}
