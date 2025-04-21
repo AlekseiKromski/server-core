@@ -35,7 +35,7 @@ func (dsl *DefaultSignedLogger) SetSignature(signature string) {
 func (dsl *DefaultSignedLogger) Info(incoming any) {
 	entry := dsl.prepareDefaultLogEntry(incoming)
 	if entry == nil {
-		dsl.Error("incoming data for log is not a string")
+		dsl.Error("incoming data for log is not a allowed type")
 		return
 	}
 
@@ -45,7 +45,7 @@ func (dsl *DefaultSignedLogger) Info(incoming any) {
 func (dsl *DefaultSignedLogger) Error(incoming any) {
 	entry := dsl.prepareDefaultLogEntry(incoming)
 	if entry == nil {
-		dsl.Error("incoming data for log is not a string")
+		dsl.Error("incoming data for log is not a allowed type")
 		return
 	}
 
@@ -55,7 +55,7 @@ func (dsl *DefaultSignedLogger) Error(incoming any) {
 func (dsl *DefaultSignedLogger) Warn(incoming any) {
 	entry := dsl.prepareDefaultLogEntry(incoming)
 	if entry == nil {
-		dsl.Error("incoming data for log is not a string")
+		dsl.Error("incoming data for log is not a allowed type")
 		return
 	}
 
@@ -64,9 +64,11 @@ func (dsl *DefaultSignedLogger) Warn(incoming any) {
 
 func (dsl *DefaultSignedLogger) prepareDefaultLogEntry(incoming any) *DefaultLogEntry {
 	entry := ""
-	switch incomingString := incoming.(type) {
+	switch incm := incoming.(type) {
 	case string:
-		entry = incomingString
+		entry = incm
+	case error:
+		entry = incm.Error()
 	default:
 		return nil
 	}
