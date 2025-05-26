@@ -43,6 +43,13 @@ func (dl *DefaultLogger) log(prefix string, incoming any) {
 		messages = append(messages, v...)
 	case error:
 		messages = append(messages, v.Error())
+	case interface{}:
+		encoded, err := json.Marshal(v)
+		if err != nil {
+			dl.Error(fmt.Errorf("cannot encode interface{} to json string: %v", err))
+			return
+		}
+		messages = append(messages, string(encoded))
 	default:
 		messages = append(messages, "CANNOT PARSE INCOMING LOG INFORMATION")
 	}
