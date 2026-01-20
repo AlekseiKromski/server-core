@@ -12,10 +12,10 @@ type Logger interface {
 }
 
 type DefaultLogger struct {
-	signature string
+	signature Signature
 }
 
-func NewDefaultLogger(signature string) *DefaultLogger {
+func NewDefaultLogger(signature Signature) *DefaultLogger {
 	return &DefaultLogger{
 		signature: signature,
 	}
