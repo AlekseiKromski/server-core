@@ -8,16 +8,16 @@ import (
 )
 
 type Core struct {
-	systemChannel   chan os.Signal
-	notifyChannel   chan struct{}
-	eventBusChannel chan BusEvent
+	systemChannel  chan os.Signal
+	notifyChannel  chan struct{}
+	eventBusSender *eventBus
 }
 
 func NewCore() *Core {
 	return &Core{
-		systemChannel:   make(chan os.Signal, 1),
-		notifyChannel:   make(chan struct{}, 1),
-		eventBusChannel: make(chan BusEvent, 1),
+		systemChannel:  make(chan os.Signal, 1),
+		notifyChannel:  make(chan struct{}, 1),
+		eventBusSender: newEventBus(),
 	}
 }
 
@@ -32,28 +32,34 @@ func (c *Core) Init(modules []Module) {
 
 	c.startModules(modules, requirements)
 
+	// All modules started, let's start Listener
+	c.eventBusSender.listen(modules)
+
 	// Block main thread until stop
 	<-c.systemChannel
 
 	c.stopModules(modules)
 
+	// Stop system event bus
+	c.eventBusSender.stop()
+
 	// Exit from application
 	os.Exit(0)
 }
 
-func (c *Core) startModules(modules []Module, requirements map[string]Module) {
+func (c *Core) startModules(modules []Module, requirements map[Signature]Module) {
 	defer close(c.notifyChannel)
 
 	startTime := time.Now()
 	log.Printf("Core: Start %d modules", len(modules))
 	for _, module := range modules {
-		mReqs := map[string]Module{}
+		mReqs := map[Signature]Module{}
 
 		for _, requirement := range module.Require() {
 			mReqs[requirement] = requirements[requirement]
 		}
 
-		go module.Start(c.notifyChannel, c.eventBusChannel, mReqs)
+		go module.Start(c.notifyChannel, c.eventBusSender.send, mReqs)
 
 		//Wait until module start
 		<-c.notifyChannel
@@ -62,8 +68,8 @@ func (c *Core) startModules(modules []Module, requirements map[string]Module) {
 }
 
 // createRequireTree return a list of sorted modules by requirements
-func (c *Core) createRequireTree(modules []Module) ([]Module, map[string]Module) {
-	requirements := map[string]Module{}
+func (c *Core) createRequireTree(modules []Module) ([]Module, map[Signature]Module) {
+	requirements := map[Signature]Module{}
 	var sortedModules []Module
 
 	index := 0

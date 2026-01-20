@@ -1,11 +1,11 @@
 package core
 
 type DefaultLogEntry struct {
-	Signature string `json:"signature"`
-	Message   string `json:"message"`
+	Signature Signature `json:"signature"`
+	Message   string    `json:"message"`
 }
 
-func NewDefaultLogEntry(signature, message string) *DefaultLogEntry {
+func NewDefaultLogEntry(signature Signature, message string) *DefaultLogEntry {
 	return &DefaultLogEntry{
 		Signature: signature,
 		Message:   message,
@@ -13,12 +13,12 @@ func NewDefaultLogEntry(signature, message string) *DefaultLogEntry {
 }
 
 type SignedLogger interface {
-	SetSignature(signature string)
+	SetSignature(signature Signature)
 	Logger
 }
 
 type DefaultSignedLogger struct {
-	signature string
+	signature Signature
 	logger    Logger
 }
 
@@ -28,7 +28,7 @@ func NewDefaultSignedLogger(logger Logger) *DefaultSignedLogger {
 	}
 }
 
-func (dsl *DefaultSignedLogger) SetSignature(signature string) {
+func (dsl *DefaultSignedLogger) SetSignature(signature Signature) {
 	dsl.signature = signature
 }
 
