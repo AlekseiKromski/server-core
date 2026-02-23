@@ -1,10 +1,14 @@
 package core
 
 type Module interface {
-	Start(notifyChannel chan struct{}, eventBusSender func(event *BusEvent), requirements map[Signature]Module) // Start module
-	Stop()                                                                                                      // Stop module
-	Signature() Signature                                                                                       // Signature unique name // Log should have log mechanism
-	SignedLogger
+	Start(
+		notifyChannel chan struct{},
+		eventBusSender func(event *BusEvent),
+		requirements map[Signature]Module,
+	) // Start module
+	Stop()                // Stop module
+	Signature() Signature // Signature unique name
+	SignedLogger          // Log should have log mechanism
 }
 
 type Require interface {
