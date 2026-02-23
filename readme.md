@@ -11,6 +11,7 @@ This module can be imported into a go project using the command
 ```bash 
 go get github.com/AlekseiKromski/server-core
 ```
+
 ## Example of usage in your project
 
 ```go
@@ -28,3 +29,5 @@ func main() {
 }
 
 ```
+
+> See also module implementation example [./internal/example.go](./internal/example.go)

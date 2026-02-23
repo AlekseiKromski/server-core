@@ -7,6 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// Check module implementation during compile time
+var _ Module = &A{}
+var _ Listener = &A{}
+var _ Require = &A{}
+
 type A struct {
 	ebs            func(e *BusEvent)
 	listenerAction func(ebs func(e *BusEvent), e *BusEvent)

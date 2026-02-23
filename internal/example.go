@@ -4,6 +4,8 @@ import "github.com/AlekseiKromski/server-core/core"
 
 // Check module implementation during compile time
 var _ core.Module = &Module{}
+var _ core.Listener = &Module{}
+var _ core.Require = &Module{}
 
 type Module struct {
 	core.SignedLogger

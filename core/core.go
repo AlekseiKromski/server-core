@@ -55,8 +55,11 @@ func (c *Core) startModules(modules []Module, requirements map[Signature]Module)
 	for _, module := range modules {
 		mReqs := map[Signature]Module{}
 
-		for _, requirement := range module.Require() {
-			mReqs[requirement] = requirements[requirement]
+		// If we have some requirements, load them
+		if r, ok := module.(Require); ok {
+			for _, requirement := range r.Require() {
+				mReqs[requirement] = requirements[requirement]
+			}
 		}
 
 		go module.Start(c.notifyChannel, c.eventBusSender.send, mReqs)
@@ -89,7 +92,13 @@ Main:
 			continue
 		}
 
-		mReqs := m.Require()
+		// If we implement Require interface, we can get requirements
+		// Otherwise empty array
+		mReqs := []Signature{}
+		if m, ok := m.(Require); ok {
+			mReqs = m.Require()
+		}
+
 		for _, req := range mReqs {
 			// If no requirement, let's process next
 			if requirements[req] == nil {

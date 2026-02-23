@@ -34,9 +34,12 @@ func newEventBus() *eventBus {
 func (eb *eventBus) listen(modules []Module) {
 
 	// Convert modules list to modules map for faster processing
-	modulesMap := map[Signature]Module{}
+	modulesMap := map[Signature]Listener{}
 	for _, m := range modules {
-		modulesMap[m.Signature()] = m
+		// Skip non-listeners
+		if listener, ok := m.(Listener); ok {
+			modulesMap[m.Signature()] = listener
+		}
 	}
 
 	for {
