@@ -1,29 +1,38 @@
 package core
 
 import (
+	"context"
 	"log"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 )
 
 type Core struct {
-	systemChannel  chan os.Signal
 	notifyChannel  chan struct{}
 	eventBusSender *eventBus
 }
 
 func NewCore() *Core {
 	return &Core{
-		systemChannel:  make(chan os.Signal, 1),
 		notifyChannel:  make(chan struct{}, 1),
 		eventBusSender: newEventBus(),
 	}
 }
 
 func (c *Core) Init(modules []Module) {
+	// Create a context for graceful shutdown for core modules only
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Subscribe to Interrupt syscall
-	signal.Notify(c.systemChannel, os.Interrupt)
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan,
+		syscall.SIGINT,  // Ctrl+C
+		syscall.SIGTERM, // Kubernetes/Docker termination
+		syscall.SIGQUIT, // Ctrl+\
+	)
 
 	// Create requirements tree
 	log.Println("Core: create requirements tree")
@@ -33,15 +42,12 @@ func (c *Core) Init(modules []Module) {
 	c.startModules(modules, requirements)
 
 	// All modules started, let's start Listener
-	c.eventBusSender.listen(modules)
+	c.eventBusSender.listen(ctx, modules)
 
 	// Block main thread until stop
-	<-c.systemChannel
+	<-sigChan
 
 	c.stopModules(modules)
-
-	// Stop system event bus
-	c.eventBusSender.stop()
 
 	// Exit from application
 	os.Exit(0)
