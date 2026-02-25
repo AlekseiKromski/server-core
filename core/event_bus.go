@@ -1,8 +1,6 @@
 package core
 
-import (
-	"context"
-)
+import "context"
 
 type BusEvent struct {
 	Receiver Signature
@@ -17,21 +15,16 @@ func NewBusEvent(r Signature, p interface{}) *BusEvent {
 }
 
 type eventBus struct {
-	c      chan *BusEvent
-	ctx    context.Context
-	cancel context.CancelFunc
+	c chan *BusEvent
 }
 
 func newEventBus() *eventBus {
-	ctx, cancel := context.WithCancel(context.Background())
 	return &eventBus{
-		c:      make(chan *BusEvent, 1),
-		ctx:    ctx,
-		cancel: cancel,
+		c: make(chan *BusEvent, 1),
 	}
 }
 
-func (eb *eventBus) listen(modules []Module) {
+func (eb *eventBus) listen(ctx context.Context, modules []Module) {
 
 	// Convert modules list to modules map for faster processing
 	modulesMap := map[Signature]Listener{}
@@ -50,7 +43,7 @@ func (eb *eventBus) listen(modules []Module) {
 				m.Listen(e)
 				continue
 			}
-		case <-eb.ctx.Done():
+		case <-ctx.Done():
 			return
 		}
 	}
@@ -59,9 +52,4 @@ func (eb *eventBus) listen(modules []Module) {
 func (eb *eventBus) send(event *BusEvent) {
 	// Send event to channel
 	eb.c <- event
-}
-
-func (eb *eventBus) stop() {
-	// Stop all event bus listening proccess
-	eb.cancel()
 }
