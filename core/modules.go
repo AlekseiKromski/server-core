@@ -16,5 +16,5 @@ type Require interface {
 }
 
 type Listener interface {
-	Listen(event *BusEvent) // An entrypoint for BusEvent event
+	Listen(event *BusEvent)
 }

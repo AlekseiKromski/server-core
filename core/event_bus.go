@@ -1,6 +1,9 @@
 package core
 
-import "context"
+import (
+	"context"
+	"sync"
+)
 
 type BusEvent struct {
 	Receiver Signature
@@ -15,12 +18,16 @@ func NewBusEvent(r Signature, p interface{}) *BusEvent {
 }
 
 type eventBus struct {
-	c chan *BusEvent
+	c               chan *BusEvent
+	runnedListeners sync.WaitGroup
+	mu              sync.RWMutex
+	closed          bool
 }
 
 func newEventBus() *eventBus {
 	return &eventBus{
-		c: make(chan *BusEvent, 1),
+		c:               make(chan *BusEvent, 1),
+		runnedListeners: sync.WaitGroup{},
 	}
 }
 
@@ -35,21 +42,48 @@ func (eb *eventBus) listen(ctx context.Context, modules []Module) {
 		}
 	}
 
-	for {
-		select {
-		case e := <-eb.c:
-			// Forward event directly to module
-			if m := modulesMap[e.Receiver]; m != nil {
-				m.Listen(e)
-				continue
-			}
-		case <-ctx.Done():
-			return
+	// Start context monitoring gorutine
+	go func() {
+		<-ctx.Done()
+
+		// Prevent to send new events by locking
+		eb.mu.Lock()
+
+		eb.closed = true
+		close(eb.c)
+
+		// Unlock everything
+		eb.mu.Unlock()
+	}()
+
+	// Read from channel until context canceled
+	for e := range eb.c {
+		if m, ok := modulesMap[e.Receiver]; ok {
+			eb.runnedListeners.Add(1)
+
+			go func(l Listener, ev *BusEvent) {
+				defer eb.runnedListeners.Done()
+
+				l.Listen(ev)
+			}(m, e)
 		}
 	}
+
+	eb.runnedListeners.Wait()
 }
 
 func (eb *eventBus) send(event *BusEvent) {
-	// Send event to channel
+	eb.mu.RLock()
+	defer eb.mu.RUnlock()
+
+	if eb.closed {
+		return
+	}
+
 	eb.c <- event
+}
+
+func (eb *eventBus) wait() {
+	// Wait until all listeners complete their work
+	eb.runnedListeners.Wait()
 }

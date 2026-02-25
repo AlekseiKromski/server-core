@@ -3,7 +3,6 @@ package core
 import (
 	"context"
 	"log"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -22,38 +21,38 @@ func NewCore() *Core {
 }
 
 func (c *Core) Init(modules []Module) {
-	// Create a context for graceful shutdown for core modules only
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	// Subscribe to Interrupt syscall
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan,
+	ctx, cancel := signal.NotifyContext(context.Background(),
 		syscall.SIGINT,  // Ctrl+C
 		syscall.SIGTERM, // Kubernetes/Docker termination
 		syscall.SIGQUIT, // Ctrl+\
 	)
+	defer cancel()
 
 	// Create requirements tree
 	log.Println("Core: create requirements tree")
 	modules, requirements := c.createRequireTree(modules)
 	log.Println("Core: requirements tree created")
 
-	c.startModules(modules, requirements)
+	go c.startModules(ctx, modules, requirements)
 
 	// All modules started, let's start Listener
-	c.eventBusSender.listen(ctx, modules)
+	go c.eventBusSender.listen(ctx, modules)
 
 	// Block main thread until stop
-	<-sigChan
+	<-ctx.Done()
 
+	// Wait until we finish with core gorutines
+	<-c.notifyChannel
+	c.eventBusSender.runnedListeners.Wait()
+
+	// Stop modules
 	c.stopModules(modules)
 
-	// Exit from application
-	os.Exit(0)
+	return
 }
 
-func (c *Core) startModules(modules []Module, requirements map[Signature]Module) {
+func (c *Core) startModules(ctx context.Context, modules []Module, requirements map[Signature]Module) {
 	defer close(c.notifyChannel)
 
 	startTime := time.Now()
@@ -70,8 +69,14 @@ func (c *Core) startModules(modules []Module, requirements map[Signature]Module)
 
 		go module.Start(c.notifyChannel, c.eventBusSender.send, mReqs)
 
-		//Wait until module start
-		<-c.notifyChannel
+		//Wait until module start or application stopped
+		select {
+		case <-c.notifyChannel:
+			continue
+		case <-ctx.Done():
+			log.Printf("Core: cannot start %s module, force exit", module.Signature())
+			return
+		}
 	}
 	log.Printf("Core: All modules started in %f seconds", time.Now().Sub(startTime).Seconds())
 }
