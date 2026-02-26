@@ -4,6 +4,8 @@ import (
 	"sync"
 	"testing"
 
+	"context"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -54,6 +56,9 @@ func (a *A) Listen(event *BusEvent) {
 }
 
 func TestEventBusDeliveryToOneModule(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	logger := NewDefaultLogger(Signature("simple-logger"))
 	nc := make(chan struct{}, 1)
 	eb := newEventBus()
@@ -79,6 +84,7 @@ func TestEventBusDeliveryToOneModule(t *testing.T) {
 
 	go func() {
 		eb.listen(
+			ctx,
 			[]Module{
 				a,
 			},
@@ -93,6 +99,9 @@ func TestEventBusDeliveryToOneModule(t *testing.T) {
 }
 
 func TestEventBusDeliveryToTwoModules(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	logger := NewDefaultLogger(Signature("simple-logger"))
 	nc := make(chan struct{}, 1)
 	eb := newEventBus()
@@ -133,6 +142,7 @@ func TestEventBusDeliveryToTwoModules(t *testing.T) {
 
 	go func() {
 		eb.listen(
+			ctx,
 			[]Module{
 				a, b,
 			},
@@ -148,6 +158,9 @@ func TestEventBusDeliveryToTwoModules(t *testing.T) {
 }
 
 func TestEventBusDeliveryFromOneAToB(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	logger := NewDefaultLogger(Signature("simple-logger"))
 	nc := make(chan struct{}, 1)
 	eb := newEventBus()
@@ -186,6 +199,7 @@ func TestEventBusDeliveryFromOneAToB(t *testing.T) {
 
 	go func() {
 		eb.listen(
+			ctx,
 			[]Module{
 				a, b,
 			},
