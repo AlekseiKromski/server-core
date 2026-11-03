@@ -50,8 +50,7 @@ func (c *Core) init(ctx context.Context, modules []Module) {
 	modules, requirements := c.createRequireTree(modules)
 	log.Println("Core: requirements tree created")
 
-	modulesStartedChannel := make(chan struct{}, 1)
-	go c.startModules(ctx, modulesStartedChannel, modules, requirements)
+	go c.startModules(ctx, modules, requirements)
 
 	go c.eventBusSender.listen(ctx, modules)
 
@@ -59,16 +58,17 @@ func (c *Core) init(ctx context.Context, modules []Module) {
 	<-ctx.Done()
 
 	// Wait until we finish with core gorutines
-	<-modulesStartedChannel
 	c.eventBusSender.runnedListeners.Wait()
 
 	// Stop modules
 	c.stopModules(modules)
 }
 
-func (c *Core) startModules(ctx context.Context, modulesStartedChannel chan struct{}, modules []Module, requirements map[Signature]Module) {
+func (c *Core) startModules(ctx context.Context, modules []Module, requirements map[Signature]Module) {
+	modulesStartedChannel := make(chan struct{}, 1)
 	// Notify core itself, that application start finished by closing channel
 	defer close(modulesStartedChannel)
+	
 	// Notify externals, that application started by closing channel
 	defer close(c.ApplicationStarted)
 
