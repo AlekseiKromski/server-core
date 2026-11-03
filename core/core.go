@@ -53,11 +53,7 @@ func (c *Core) init(ctx context.Context, modules []Module) {
 	modulesStartedChannel := make(chan struct{}, 1)
 	go c.startModules(ctx, modulesStartedChannel, modules, requirements)
 
-	// All modules started, let's start Listener
 	go c.eventBusSender.listen(ctx, modules)
-
-	// Notify externals, that application started by closing channel
-	close(c.ApplicationStarted)
 
 	// Block main thread until stop
 	<-ctx.Done()
@@ -71,7 +67,10 @@ func (c *Core) init(ctx context.Context, modules []Module) {
 }
 
 func (c *Core) startModules(ctx context.Context, modulesStartedChannel chan struct{}, modules []Module, requirements map[Signature]Module) {
+	// Notify core itself, that application start finished by closing channel
 	defer close(modulesStartedChannel)
+	// Notify externals, that application started by closing channel
+	defer close(c.ApplicationStarted)
 
 	startTime := time.Now()
 	log.Printf("Core: Start %d modules", len(modules))
