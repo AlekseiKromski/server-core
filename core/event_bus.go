@@ -82,8 +82,3 @@ func (eb *eventBus) send(event *BusEvent) {
 
 	eb.c <- event
 }
-
-func (eb *eventBus) wait() {
-	// Wait until all listeners complete their work
-	eb.runnedListeners.Wait()
-}

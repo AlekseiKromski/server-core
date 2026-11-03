@@ -9,14 +9,19 @@ import (
 )
 
 type Core struct {
-	notifyChannel  chan struct{}
+	// Notify all external listeners, that application started by closing channel
+	// There will be no `struct{}` events - this avoids the issue where an event
+	// might be sent to only a single listener. Since closing a channel affects
+	// all listeners, the signal will be received universally.
+	ApplicationStarted chan struct{}
+
 	eventBusSender *eventBus
 }
 
 func NewCore() *Core {
 	return &Core{
-		notifyChannel:  make(chan struct{}, 1),
-		eventBusSender: newEventBus(),
+		ApplicationStarted: make(chan struct{}, 1),
+		eventBusSender:     newEventBus(),
 	}
 }
 
@@ -45,26 +50,28 @@ func (c *Core) init(ctx context.Context, modules []Module) {
 	modules, requirements := c.createRequireTree(modules)
 	log.Println("Core: requirements tree created")
 
-	go c.startModules(ctx, modules, requirements)
+	modulesStartedChannel := make(chan struct{}, 1)
+	go c.startModules(ctx, modulesStartedChannel, modules, requirements)
 
 	// All modules started, let's start Listener
 	go c.eventBusSender.listen(ctx, modules)
+
+	// Notify externals, that application started by closing channel
+	close(c.ApplicationStarted)
 
 	// Block main thread until stop
 	<-ctx.Done()
 
 	// Wait until we finish with core gorutines
-	<-c.notifyChannel
+	<-modulesStartedChannel
 	c.eventBusSender.runnedListeners.Wait()
 
 	// Stop modules
 	c.stopModules(modules)
-
-	return
 }
 
-func (c *Core) startModules(ctx context.Context, modules []Module, requirements map[Signature]Module) {
-	defer close(c.notifyChannel)
+func (c *Core) startModules(ctx context.Context, modulesStartedChannel chan struct{}, modules []Module, requirements map[Signature]Module) {
+	defer close(modulesStartedChannel)
 
 	startTime := time.Now()
 	log.Printf("Core: Start %d modules", len(modules))
@@ -78,11 +85,11 @@ func (c *Core) startModules(ctx context.Context, modules []Module, requirements 
 			}
 		}
 
-		go module.Start(c.notifyChannel, c.eventBusSender.send, mReqs)
+		go module.Start(modulesStartedChannel, c.eventBusSender.send, mReqs)
 
 		//Wait until module start or application stopped
 		select {
-		case <-c.notifyChannel:
+		case <-modulesStartedChannel:
 			continue
 		case <-ctx.Done():
 			log.Printf("Core: cannot start %s module, force exit", module.Signature())
