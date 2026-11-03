@@ -21,8 +21,19 @@ func NewCore() *Core {
 }
 
 func (c *Core) Init(modules []Module) {
+	c.init(context.Background(), modules)
+}
+
+// InitManual - if you want manually handle context
+// You don't need strictly use it, it's useful for testing packages.
+// If you are not sure, please use Init() instead
+func (c *Core) InitManual(ctx context.Context, modules []Module) {
+	c.init(ctx, modules)
+}
+
+func (c *Core) init(ctx context.Context, modules []Module) {
 	// Subscribe to Interrupt syscall
-	ctx, cancel := signal.NotifyContext(context.Background(),
+	ctx, cancel := signal.NotifyContext(ctx,
 		syscall.SIGINT,  // Ctrl+C
 		syscall.SIGTERM, // Kubernetes/Docker termination
 		syscall.SIGQUIT, // Ctrl+\
